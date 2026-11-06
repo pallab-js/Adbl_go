@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Go tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+      - run: go vet ./...
+      - run: go test ./internal/...
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+  build:
+    name: Backend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+      # GTK3/WebKit2GTK 4.1 headers are available on ubuntu-latest; the
+      # default GTK4 stack may not be, so build with the gtk3 tag for CI.
+      - run: go build -tags gtk3 -o /tmp/adbl .
+
+  graph:
+    name: Dependency graph
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      # "graphify" the Go module dependency graph into a Graphviz DOT file.
+      - run: |
+          sudo apt-get install -y graphviz
+          go mod graph | grep -v '^github.com/ubl/adbl ' | awk '{print $1 " -> " $2}' | sort -u > dep-graph.txt
+          dot -Tpng -o dep-graph.png dep-graph.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-graph
+          path: |
+            dep-graph.txt
+            dep-graph.png
+          retention-days: 7
