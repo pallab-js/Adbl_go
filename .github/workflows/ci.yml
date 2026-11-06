@@ -19,6 +19,17 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      # frontend/dist is gitignored (build artifact) but main.go embeds it,
+      # so generate it before Go vet/build touches the root package.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
       - run: go vet ./...
       - run: go test ./internal/...
 
@@ -46,6 +57,15 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
       # GTK3/WebKit2GTK 4.1 headers are available on ubuntu-latest; the
       # default GTK4 stack may not be, so build with the gtk3 tag for CI.
       - run: go build -tags gtk3 -o /tmp/adbl .
