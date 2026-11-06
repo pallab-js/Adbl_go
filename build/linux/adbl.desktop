@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=adbl
+Exec=adbl
+Icon=adbl
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false
